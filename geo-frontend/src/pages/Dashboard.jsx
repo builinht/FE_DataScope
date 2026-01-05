@@ -8,6 +8,7 @@ import AirQualityCard from "../components/AirQualityCard";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorAlert from "../components/ErrorAlert";
 import SuccessAlert from "../components/SuccessAlert";
+import DatabaseTools from "../components/DatabaseTools";
 
 export default function Dashboard() {
   const { 
@@ -490,6 +491,7 @@ export default function Dashboard() {
             </p>
           </div>
         )}
+        {isAuthenticated && <DatabaseTools />}
       </div>
     </div>
   );
