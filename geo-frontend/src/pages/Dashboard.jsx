@@ -491,7 +491,7 @@ export default function Dashboard() {
             </p>
           </div>
         )}
-        {isAuthenticated && <DatabaseTools />}
+        {isAuthenticated && <DatabaseTools user={user} />}
       </div>
     </div>
   );
