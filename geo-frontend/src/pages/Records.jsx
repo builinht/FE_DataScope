@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth0 } from "@auth0/auth0-react";
 import api from "../api";
@@ -11,8 +11,8 @@ export default function Records() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(null);
-  const [toast, setToast] = useState(null);
-  const timerRef = useRef({});
+  // const [toast, setToast] = useState(null);
+  // const timerRef = useRef({});
   const navigate = useNavigate();
   const { getAccessTokenSilently } = useAuth0();
 
@@ -44,7 +44,11 @@ export default function Records() {
               });
               rec.airQuality = aqRes.data.results || [];
             } catch (err) {
-              console.error("Failed to fetch air quality for", rec.country, err);
+              console.error(
+                "Failed to fetch air quality for",
+                rec.country,
+                err
+              );
               rec.airQuality = [];
             }
           }
@@ -64,46 +68,37 @@ export default function Records() {
     fetchRecords();
   }, []);
 
-  const handleDelete = (rec) => {
-    setDeleting(rec._id);
-    setRecords((prev) => prev.filter((r) => r._id !== rec._id));
+  const handleDelete = async (rec) => {
+    try {
+      setDeleting(rec._id);
 
-    const undo = () => {
-      clearTimeout(timerRef.current[rec._id]);
-      setRecords((prev) => [rec, ...prev]);
-      setToast({ message: "Deletion undone!" });
+      // Optimistic UI: xóa khỏi UI trước
+      setRecords((prev) => prev.filter((r) => r._id !== rec._id));
+
+      const token = await getAccessTokenSilently();
+      await api.delete(`/records/${rec._id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "x-api-key": import.meta.env.VITE_BACKEND_API_KEY,
+        },
+      });
+    } catch (err) {
+      console.error(err);
+      setError("Failed to delete snapshot from backend.");
+
+      // rollback nếu backend fail
+      setRecords((prev) => [...prev, rec]);
+    } finally {
       setDeleting(null);
-    };
-
-    setToast({ message: "Snapshot deleted! Undo?", action: undo });
-
-    // Schedule actual deletion
-    timerRef.current[rec._id] = setTimeout(async () => {
-      try {
-        const token = await getAccessTokenSilently();
-        await api.delete(`/records/${rec._id}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "x-api-key": import.meta.env.VITE_BACKEND_API_KEY,
-          },
-        });
-      } catch (err) {
-        console.error(err);
-        setError("Failed to delete snapshot from backend.");
-        // Re-add record on failure
-        setRecords((prev) => [rec, ...prev]);
-      } finally {
-        delete timerRef.current[rec._id];
-        setToast(null);
-        setDeleting(null);
-      }
-    }, 5000);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 relative">
       <div className="flex justify-between items-center mb-6 gap-2">
-        <h1 className="text-3xl font-bold text-purple-600">📚 Saved Snapshots</h1>
+        <h1 className="text-3xl font-bold text-purple-600">
+          📚 Saved Snapshots
+        </h1>
         <div className="flex gap-2">
           <button
             onClick={fetchRecords}
@@ -121,7 +116,7 @@ export default function Records() {
       </div>
 
       {/* Toast */}
-      {toast && (
+      {/* {toast && (
         <div className="fixed top-4 right-4 bg-purple-600 text-white px-4 py-2 rounded shadow-lg z-50 flex items-center gap-4">
           <span>{toast.message}</span>
           {toast.action && (
@@ -133,7 +128,7 @@ export default function Records() {
             </button>
           )}
         </div>
-      )}
+      )} */}
 
       {/* Loader */}
       {loading && (
@@ -153,7 +148,10 @@ export default function Records() {
       {/* Records Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {records.map((rec) => (
-          <div key={rec._id} className="bg-white p-4 rounded-xl shadow-md relative">
+          <div
+            key={rec._id}
+            className="bg-white p-4 rounded-xl shadow-md relative"
+          >
             <h2 className="text-xl font-semibold text-blue-600 mb-1">
               {rec.country || "Unknown Country"}
             </h2>
@@ -163,14 +161,19 @@ export default function Records() {
               </p>
             )}
             <CountryCard metadata={rec.metadata || {}} />
-            <WeatherCard weather={rec.weather || {}} capital={rec.metadata?.capital || "N/A"} />
+            <WeatherCard
+              weather={rec.weather || {}}
+              capital={rec.metadata?.capital || "N/A"}
+            />
             <AirQualityCard airQuality={rec.airQuality || []} />
 
             <button
               onClick={() => handleDelete(rec)}
               disabled={deleting === rec._id}
               className={`absolute top-2 right-2 px-2 py-1 text-white rounded ${
-                deleting === rec._id ? "bg-gray-400" : "bg-red-500 hover:bg-red-600"
+                deleting === rec._id
+                  ? "bg-gray-400"
+                  : "bg-red-500 hover:bg-red-600"
               }`}
             >
               {deleting === rec._id ? "Deleting..." : "Delete"}
