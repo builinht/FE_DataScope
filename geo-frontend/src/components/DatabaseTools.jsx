@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { useAuth0 } from "@auth0/auth0-react";
+import { useState } from "react";
 import api from "../api";
 import {
   backupDB,
@@ -8,9 +7,10 @@ import {
   importDB,
   restoreBackupDB,
 } from "../services/dbAdminService";
+import { getUser } from "../utils/auth";
 
 // User-only endpoints
-const exportUserDB = async (api) => {
+const exportUserDB = async () => {
   const res = await api.get("/user/db/export", { responseType: "blob" });
   const blob = new Blob([res.data], { type: "application/json" });
   const url = window.URL.createObjectURL(blob);
@@ -21,58 +21,32 @@ const exportUserDB = async (api) => {
   window.URL.revokeObjectURL(url);
 };
 
-const importUserDB = async (api, file) => {
+const importUserDB = async (file) => {
   const formData = new FormData();
   formData.append("file", file);
-  const res = await api.post("/user/db/import", formData, {
+  await api.post("/user/db/import", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
-  return res.data;
 };
 
 export default function DatabaseTools() {
-  const { getAccessTokenSilently } = useAuth0();
+  const user = getUser();
+  const role = user?.role; // "admin" | "user"
+  const isAdmin = role === "admin";
+  const isUser = role === "user";
+
   const [loading, setLoading] = useState(false);
-  const [roles, setRoles] = useState(null); // null = chưa biết roles
 
-  // Decode roles from token
-  useEffect(() => {
-    const fetchRoles = async () => {
-      try {
-        const token = await getAccessTokenSilently();
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        const r = payload["https://geoinsight/roles"];
-        // ép kiểu luôn thành array
-        setRoles(Array.isArray(r) ? r : r ? [r] : []);
-      } catch (err) {
-        console.error("Failed to get roles:", err);
-        setRoles([]);
-      }
-    };
-    fetchRoles();
-  }, []);
-
-  // Chờ roles load
-  if (roles === null) return null;
-
-  const isAdmin = roles.includes("admin");
-  const isUser = roles.includes("user");
-
-  const withAuthApi = async () => {
-    const token = await getAccessTokenSilently();
-    api.defaults.headers.Authorization = `Bearer ${token}`;
-    return api;
-  };
+  if (!user) return null;
 
   const handleBackup = async () => {
     try {
       setLoading(true);
-      const apiAuth = await withAuthApi();
-      await backupDB(apiAuth);
+      await backupDB(api);
       alert("✅ Backup thành công");
     } catch (e) {
-      alert("❌ Backup thất bại");
       console.error(e);
+      alert("❌ Backup thất bại");
     } finally {
       setLoading(false);
     }
@@ -81,13 +55,12 @@ export default function DatabaseTools() {
   const handleExport = async () => {
     try {
       setLoading(true);
-      const apiAuth = await withAuthApi();
-      if (isAdmin) await exportDB(apiAuth);
-      else if (isUser) await exportUserDB(apiAuth);
+      if (isAdmin) await exportDB(api);
+      else if (isUser) await exportUserDB();
       else alert("⚠️ Bạn không có quyền export");
     } catch (e) {
-      alert("❌ Export thất bại");
       console.error(e);
+      alert("❌ Export thất bại");
     } finally {
       setLoading(false);
     }
@@ -97,14 +70,13 @@ export default function DatabaseTools() {
     if (!file) return;
     try {
       setLoading(true);
-      const apiAuth = await withAuthApi();
-      if (isAdmin) await importDB(apiAuth, file);
-      else if (isUser) await importUserDB(apiAuth, file);
-      else alert("⚠️ Bạn không có quyền import");
+      if (isAdmin) await importDB(api, file);
+      else if (isUser) await importUserDB(file);
+      else return alert("⚠️ Bạn không có quyền import");
       alert("✅ Import thành công");
     } catch (e) {
-      alert("❌ Import thất bại");
       console.error(e);
+      alert("❌ Import thất bại");
     } finally {
       setLoading(false);
     }
@@ -112,18 +84,15 @@ export default function DatabaseTools() {
 
   const handleRestoreFile = async (file) => {
     if (!file) return;
+    if (!isAdmin) return alert("❌ Chỉ admin mới được restore");
     if (!confirm("⚠️ Restore sẽ GHI ĐÈ dữ liệu hiện tại. Tiếp tục?")) return;
-    if (!isAdmin) {
-      alert("❌ Chỉ admin mới có thể restore");
-      return;
-    }
 
     try {
       setLoading(true);
-      const apiAuth = await withAuthApi();
-      if (file.name.endsWith(".json")) await restoreDB(apiAuth, file);
-      else if (file.name.endsWith(".zip")) await restoreBackupDB(apiAuth, file);
-      else return alert("❌ File không hợp lệ (chỉ .json hoặc .zip)");
+      if (file.name.endsWith(".json")) await restoreDB(api, file);
+      else if (file.name.endsWith(".zip"))
+        await restoreBackupDB(api, file);
+      else return alert("❌ Chỉ hỗ trợ .json hoặc .zip");
       alert("✅ Restore thành công");
     } catch (err) {
       console.error(err);
