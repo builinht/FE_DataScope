@@ -85,10 +85,15 @@ export default function DatabaseTools() {
     if (!file) return;
     try {
       setLoading(true);
+
       if (isAdmin) await importDB(api, file);
       else if (isUser) await importUserDB(file);
       else return alert("⚠️ Không có quyền import");
+
       alert("✅ Import thành công");
+
+      // ✅ RESET PAGE SAU IMPORT
+      window.location.reload();
     } catch (e) {
       console.error(e);
       alert("❌ Import thất bại");
