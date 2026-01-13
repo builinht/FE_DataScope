@@ -55,7 +55,10 @@ export default function Dashboard() {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setShowDropdown(false);
       }
-      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target)) {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(e.target)
+      ) {
         setShowSuggestions(false);
         setHighlightedIndex(-1);
       }
@@ -305,7 +308,9 @@ export default function Dashboard() {
     return (
       <>
         {text.slice(0, idx)}
-        <span className="bg-yellow-100 rounded px-1">{text.slice(idx, idx + q.length)}</span>
+        <span className="bg-yellow-100 rounded px-1">
+          {text.slice(idx, idx + q.length)}
+        </span>
         {text.slice(idx + q.length)}
       </>
     );
@@ -437,14 +442,38 @@ export default function Dashboard() {
         <div className="bg-white p-6 rounded-lg shadow mb-6">
           <div className="relative" ref={suggestionsRef}>
             <div className="relative">
-              <svg className="w-5 h-5 absolute left-3 top-3 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z"/></svg>
+              <svg
+                className="w-5 h-5 absolute left-3 top-3 text-gray-400"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z"
+                />
+              </svg>
               <input
                 value={searchTerm}
-                onChange={(e) => { setSearchTerm(e.target.value); }}
-                onFocus={() => { if (searchTerm.trim()) setShowSuggestions(true); }}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                }}
+                onFocus={() => {
+                  if (searchTerm.trim()) setShowSuggestions(true);
+                }}
                 onKeyDown={handleSearchKeyDown}
                 placeholder="Search country..."
-                className="w-full border p-3 pl-10 rounded mb-4"
+                className="
+                  w-full border p-3 pl-10 rounded mb-4
+                  transition
+                  focus:outline-none
+                  focus:ring-2
+                  focus:ring-blue-300
+                  focus:border-blue-400
+                  focus:shadow-sm
+                "
               />
             </div>
 
@@ -463,11 +492,15 @@ export default function Dashboard() {
                         setShowSuggestions(false);
                       }}
                       onMouseEnter={() => setHighlightedIndex(idx)}
-                      className={`w-full text-left p-3 hover:bg-gray-100 border-b last:border-b-0 ${highlightedIndex === idx ? "bg-gray-100" : ""}`}
+                      className={`w-full text-left p-3 hover:bg-gray-100 border-b last:border-b-0 ${
+                        highlightedIndex === idx ? "bg-gray-100" : ""
+                      }`}
                       role="option"
                       aria-selected={highlightedIndex === idx}
                     >
-                      <div className="font-medium">{renderHighlighted(c.name, searchTerm)}</div>
+                      <div className="font-medium">
+                        {renderHighlighted(c.name, searchTerm)}
+                      </div>
                       <div className="text-sm text-gray-500">{c.capital}</div>
                     </button>
                   ))
