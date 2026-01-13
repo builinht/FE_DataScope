@@ -2,8 +2,9 @@ import { useState } from "react";
 import api from "../api";
 import { backupDB, exportDB, importDB } from "../services/dbAdminService";
 import { getUser } from "../utils/auth";
+import toast from "react-hot-toast";
 
-// ===== USER EXPORT / IMPORT =====
+// ===== USER EXPORT =====
 const exportUserDB = async () => {
   const res = await api.get("/user/db/export", { responseType: "blob" });
   const blob = new Blob([res.data], { type: "application/json" });
@@ -15,6 +16,7 @@ const exportUserDB = async () => {
   window.URL.revokeObjectURL(url);
 };
 
+// ===== USER IMPORT =====
 const importUserDB = async (file) => {
   const formData = new FormData();
   formData.append("file", file);
@@ -33,103 +35,134 @@ export default function DatabaseTools() {
 
   if (!user) return null;
 
-  // ===== ADMIN =====
+  /* ======================
+        ADMIN
+  ====================== */
   const handleBackup = async () => {
+    const toastId = toast.loading("⏳ Đang backup...");
     try {
       setLoading(true);
       await backupDB(api);
-      alert("✅ Backup thành công");
+      toast.success("Backup thành công", { id: toastId });
     } catch (e) {
       console.error(e);
-      alert("❌ Backup thất bại");
+      toast.error("Backup thất bại", { id: toastId });
     } finally {
       setLoading(false);
     }
   };
 
-  // const handleRestoreLatest = async () => {
-  //   if (!isAdmin) return;
-  //   if (!confirm("⚠️ Restore sẽ GHI ĐÈ toàn bộ dữ liệu hiện tại. Tiếp tục?"))
-  //     return;
-
-  //   try {
-  //     setLoading(true);
-  //     await restoreLatestDB(api);
-  //     alert("✅ Restore thành công");
-  //     window.location.reload();
-  //   } catch (e) {
-  //     console.error(e);
-  //     alert("❌ Restore thất bại");
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
-  // ===== EXPORT =====
+  /* ======================
+        EXPORT
+  ====================== */
   const handleExport = async () => {
+    const toastId = toast.loading("⏳ Đang export...");
     try {
       setLoading(true);
       if (isAdmin) await exportDB(api);
       else if (isUser) await exportUserDB();
-      else alert("⚠️ Không có quyền export");
+      else throw new Error("No permission");
+
+      toast.success("Export thành công", { id: toastId });
     } catch (e) {
       console.error(e);
-      alert("❌ Export thất bại");
+      toast.error("Export thất bại", { id: toastId });
     } finally {
       setLoading(false);
     }
   };
 
-  // ===== IMPORT =====
+  /* ======================
+        IMPORT
+  ====================== */
   const handleImport = async (file) => {
     if (!file) return;
+
+    const toastId = toast.loading("⏳ Đang import...");
     try {
       setLoading(true);
 
       if (isAdmin) await importDB(api, file);
       else if (isUser) await importUserDB(file);
-      else return alert("⚠️ Không có quyền import");
+      else throw new Error("No permission");
 
-      alert("✅ Import thành công");
+      toast.success("Import thành công", { id: toastId });
 
-      // ✅ RESET PAGE SAU IMPORT
-      window.location.reload();
+      // ✅ reset page sau import
+      setTimeout(() => window.location.reload(), 800);
     } catch (e) {
       console.error(e);
-      alert("❌ Import thất bại");
+      toast.error("Import thất bại", { id: toastId });
     } finally {
       setLoading(false);
     }
   };
 
-  // ===== USER BACKUP =====
+  /* ======================
+        USER BACKUP
+  ====================== */
   const handleUserBackup = async () => {
+    const toastId = toast.loading("⏳ Đang backup dữ liệu của bạn...");
     try {
       setLoading(true);
       const { data } = await api.post("/user/db/backup");
-      alert(`✅ Backup thành công: ${data.message}`);
+      toast.success(`Backup thành công: ${data.message}`, {
+        id: toastId,
+      });
     } catch (e) {
       console.error(e);
-      alert("❌ User backup thất bại");
+      toast.error("User backup thất bại", { id: toastId });
     } finally {
       setLoading(false);
     }
   };
 
-  // ===== USER RESTORE =====
+  /* ======================
+        USER RESTORE
+  ====================== */
   const handleUserRestore = async () => {
-    if (!confirm("⚠️ Restore sẽ GHI ĐÈ dữ liệu của bạn. Tiếp tục?")) return;
-    try {
-      setLoading(true);
-      await api.post("/user/db/restore"); // chỉ restore latest backup
-      alert("✅ User restore thành công");
-      window.location.reload();
-    } catch (e) {
-      console.error(e);
-      alert("❌ User restore thất bại");
-    } finally {
-      setLoading(false);
-    }
+    toast(
+      (t) => (
+        <div>
+          <p className="font-semibold">
+            ⚠️ Restore sẽ ghi đè dữ liệu của bạn
+          </p>
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={async () => {
+                toast.dismiss(t.id);
+                const loadingId = toast.loading("⏳ Đang restore...");
+                try {
+                  setLoading(true);
+                  await api.post("/user/db/restore");
+                  toast.success("Restore thành công", {
+                    id: loadingId,
+                  });
+                  setTimeout(() => window.location.reload(), 800);
+                } catch (e) {
+                  console.error(e);
+                  toast.error("Restore thất bại", {
+                    id: loadingId,
+                  });
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              className="px-3 py-1 bg-red-500 text-white rounded"
+            >
+              Restore
+            </button>
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="px-3 py-1 bg-gray-300 rounded"
+            >
+              Huỷ
+            </button>
+          </div>
+        </div>
+      ),
+      { duration: 6000 }
+    );
   };
 
   return (
@@ -139,7 +172,6 @@ export default function DatabaseTools() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {isAdmin && (
           <>
-            {/* ADMIN: full DB control */}
             <button
               onClick={handleBackup}
               disabled={loading}
@@ -147,14 +179,6 @@ export default function DatabaseTools() {
             >
               Backup
             </button>
-
-            {/* <button
-              onClick={handleRestoreLatest}
-              disabled={loading}
-              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
-            >
-              Restore Latest Backup
-            </button> */}
 
             <button
               onClick={handleExport}
@@ -194,12 +218,6 @@ export default function DatabaseTools() {
               Restore
             </button>
           </>
-        )}
-
-        {!isAdmin && !isUser && (
-          <p className="col-span-full text-gray-500 text-sm">
-            ⚠️ Bạn không có quyền sử dụng công cụ này
-          </p>
         )}
       </div>
     </div>
