@@ -22,9 +22,8 @@ const styles = {
     padding: "2rem",
     textAlign: "center",
   },
-  header: { marginBottom: "0.75rem" },
-  title: { fontSize: "1.8rem", margin: "0 0 0.25rem 0", color: "#111827" },
-  subtitle: { margin: 0, color: "#6b7280", fontSize: "0.95rem" },
+  title: { fontSize: "1.8rem", margin: "0 0 0.5rem 0", color: "#111827" },
+  subtitle: { margin: "0 0 1.25rem 0", color: "#6b7280", fontSize: "0.95rem" },
   errorBox: {
     textAlign: "left",
     background: "#fff7f7",
@@ -66,35 +65,34 @@ const styles = {
     transition: "background 0.18s",
   },
   btnIcon: { width: 20, height: 20 },
-  footer: { marginTop: "1rem" },
-  smallText: { color: "#6b7280", fontSize: "0.85rem" },
-  signupLink: { color: "#2563eb", cursor: "pointer", textDecoration: "underline" },
+  footer: { marginTop: "1rem", fontSize: "0.85rem", color: "#6b7280" },
+  link: { color: "#2563eb", cursor: "pointer", textDecoration: "underline" },
 };
 
-const Login = () => {
-  const { login } = useAuth();
+const Register = () => {
+  const { register } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [focused, setFocused] = useState(null);
 
-  const handleLogin = async () => {
+  const handleRegister = async () => {
     try {
-      await login(email, password);
+      await register(email, password);
       navigate("/");
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed");
+      setError(err.response?.data?.message || "Registration failed");
     }
   };
 
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-        <div style={styles.header}>
+        <div>
           <h1 style={styles.title}>🌍 GeoInsight</h1>
           <p style={styles.subtitle}>
-            Sign in to access your geographic data dashboard
+            Create your account to access your geographic data dashboard
           </p>
         </div>
 
@@ -108,7 +106,7 @@ const Login = () => {
           style={styles.form}
           onSubmit={(e) => {
             e.preventDefault();
-            handleLogin();
+            handleRegister();
           }}
         >
           <input
@@ -153,23 +151,23 @@ const Login = () => {
                 d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
               />
             </svg>
-            Log In
+            Sign Up
           </button>
         </form>
 
         <div style={styles.footer}>
-          <p style={styles.smallText}>
-            Don't have an account?{" "}
+          <p>
+            Already have an account?{" "}
             <span
               role="button"
               tabIndex={0}
-              style={styles.signupLink}
-              onClick={() => navigate("/register")}
+              style={styles.link}
+              onClick={() => navigate("/login")}
               onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") navigate("/register");
+                if (e.key === "Enter" || e.key === " ") navigate("/login");
               }}
             >
-              Sign up
+              Log in
             </span>
           </p>
         </div>
@@ -178,4 +176,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Register;

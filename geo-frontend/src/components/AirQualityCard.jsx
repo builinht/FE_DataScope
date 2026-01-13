@@ -55,7 +55,7 @@ export default function AirQualityCard({
     if (s.includes("good")) return { bg: "bg-green-50", border: "border-green-200", text: "text-green-800", icon: "✅" };
     if (s.includes("moderate")) return { bg: "bg-yellow-50", border: "border-yellow-200", text: "text-yellow-800", icon: "⚠️" };
     if (s.includes("unhealthy for sensitive")) return { bg: "bg-orange-50", border: "border-orange-200", text: "text-orange-800", icon: "⚠️" };
-    if (s.includes("unhealthy")) return { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-800", icon: "💡" };
+    if (s.includes("unhealthy")) return { bg: "bg-red-50", border: "border-red-200", text: "text-red-800", icon: "💡" };
     if (s.includes("very unhealthy")) return { bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-800", icon: "☠️" };
     if (s.includes("hazardous")) return { bg: "bg-red-100", border: "border-red-300", text: "text-red-900", icon: "☠️" };
     return { bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-800", icon: "ℹ️" };
@@ -126,7 +126,7 @@ export default function AirQualityCard({
               {primaryMeasurement.advisory || getHealthAdvisory(primaryMeasurement.status)}
             </p>
           </div>
-          <p className="text-xs text-gray-400 mt-2">Measured at: {new Date(primaryMeasurement.measuredAt).toLocaleString()}</p>
+          {/* <p className="text-xs text-gray-400 mt-2">Measured at: {new Date(primaryMeasurement.measuredAt).toLocaleString()}</p> */}
         </div>
       )}
 

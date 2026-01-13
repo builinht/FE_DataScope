@@ -1,17 +1,12 @@
 export const backupDB = async (api) => {
-  const res = await api.post("/admin/db/backup", {}, { responseType: "blob" });
-
-  const blob = new Blob([res.data], { type: "application/zip" });
-  const url = window.URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "geoinsight_backup.zip";
-  a.click();
-
-  window.URL.revokeObjectURL(url);
+  const res = await api.post("/admin/db/backup");
+  return res.data;
 };
 
+export const restoreLatestDB = async (api) => {
+  const res = await api.post("/admin/db/restore/latest");
+  return res.data;
+};
 
 export const restoreDB = async (api, file) => {
   const formData = new FormData();

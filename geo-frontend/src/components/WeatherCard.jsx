@@ -41,11 +41,11 @@ const WeatherCard = ({ weather, capital, className = '' }) => {
           <span className={`text-3xl font-bold ${getTemperatureColor(weather.temperature)}`}>
             {weather.temperature}°C
           </span>
-          {weather.feelsLike && weather.feelsLike !== 'N/A' && (
+          {/* {weather.feelsLike && weather.feelsLike !== 'N/A' && (
             <p className="text-sm text-gray-600 mt-1">
               Feels like {weather.feelsLike}°C
             </p>
-          )}
+          )} */}
         </div>
         
         <div className="flex justify-between items-center py-2 border-b border-gray-100">
