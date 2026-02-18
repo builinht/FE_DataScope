@@ -35,6 +35,9 @@ export default function Navbar() {
             <Link to="/records" className={menuClass("/records")}>
               Records
             </Link>
+            <Link to="/analytics" className={menuClass("/analytics")}>
+              Analytics & Insights
+            </Link>
           </div>
 
           {/* User */}
