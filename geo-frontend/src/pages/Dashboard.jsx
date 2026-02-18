@@ -102,7 +102,7 @@ export default function Dashboard() {
       try {
         setLoading(true);
         const res = await fetch(
-          "https://restcountries.com/v3.1/all?fields=name,capital,population"
+          "https://restcountries.com/v3.1/all?fields=name,capital,population",
         );
         if (!res.ok) throw new Error("Country API failed");
 
@@ -149,8 +149,8 @@ export default function Dashboard() {
         countries.filter(
           (c) =>
             c.name.toLowerCase().includes(q) ||
-            c.capital.toLowerCase().includes(q)
-        )
+            c.capital.toLowerCase().includes(q),
+        ),
       );
     }
   }, [searchTerm, countries]);
@@ -195,8 +195,8 @@ export default function Dashboard() {
     try {
       const countryRes = await fetch(
         `https://restcountries.com/v3.1/name/${encodeURIComponent(
-          selectedCountry
-        )}?fullText=true`
+          selectedCountry,
+        )}?fullText=true`,
       );
       if (!countryRes.ok) throw new Error("Country details not found");
 
@@ -252,7 +252,7 @@ export default function Dashboard() {
       const url = hasCoords
         ? `https://api.openweathermap.org/data/2.5/weather?lat=${m.lat}&lon=${m.lon}&units=metric&appid=${key}`
         : `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(
-            m.capital
+            m.capital,
           )}&units=metric&appid=${key}`;
 
       const res = await fetch(url);
@@ -334,7 +334,7 @@ export default function Dashboard() {
         setHighlightedIndex(-1);
       } else {
         const exact = countries.find(
-          (c) => c.name.toLowerCase() === searchTerm.trim().toLowerCase()
+          (c) => c.name.toLowerCase() === searchTerm.trim().toLowerCase(),
         );
         if (exact) setSelectedCountry(exact.name);
       }
@@ -610,7 +610,6 @@ export default function Dashboard() {
             </div>
           </>
         )}
-
         {isAuthenticated && <DatabaseTools user={user} />}
       </main>
     </div>

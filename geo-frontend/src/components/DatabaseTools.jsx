@@ -1,6 +1,6 @@
 import { useState } from "react";
 import api from "../api";
-import { backupDB, exportDB, importDB } from "../services/dbAdminService";
+import { backupDB, exportDB, importDB, restoreLatestDB } from "../services/dbAdminService";
 import { getUser } from "../utils/auth";
 import toast from "react-hot-toast";
 
@@ -50,6 +50,60 @@ export default function DatabaseTools() {
     } finally {
       setLoading(false);
     }
+  };
+
+  /* ======================
+      ADMIN RESTORE
+====================== */
+  const handleAdminRestore = async () => {
+    toast(
+      (t) => (
+        <div>
+          <p className="font-semibold text-red-600">
+            ⚠️ Restore sẽ ghi đè TOÀN BỘ database
+          </p>
+
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={async () => {
+                toast.dismiss(t.id);
+
+                const loadingId = toast.loading("⏳ Đang restore...");
+
+                try {
+                  setLoading(true);
+                  await restoreLatestDB(api);
+
+                  toast.success("Restore thành công", {
+                    id: loadingId,
+                  });
+
+                  setTimeout(() => window.location.reload(), 1000);
+                } catch (e) {
+                  console.error(e);
+                  toast.error("Restore thất bại", {
+                    id: loadingId,
+                  });
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              className="px-3 py-1 bg-red-600 text-white rounded"
+            >
+              Restore
+            </button>
+
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="px-3 py-1 bg-gray-300 rounded"
+            >
+              Huỷ
+            </button>
+          </div>
+        </div>
+      ),
+      { duration: 6000 },
+    );
   };
 
   /* ======================
@@ -105,13 +159,17 @@ export default function DatabaseTools() {
     const toastId = toast.loading("⏳ Đang backup dữ liệu của bạn...");
     try {
       setLoading(true);
+
       const { data } = await api.post("/user/db/backup");
-      toast.success(`Backup thành công: ${data.message}`, {
-        id: toastId,
-      });
+
+      if (data.success) {
+        toast.success("Backup thành công", { id: toastId });
+      } else {
+        toast.error("Backup thất bại", { id: toastId });
+      }
     } catch (e) {
       console.error(e);
-      toast.error("User backup thất bại", { id: toastId });
+      toast.error("Backup thất bại", { id: toastId });
     } finally {
       setLoading(false);
     }
@@ -124,9 +182,7 @@ export default function DatabaseTools() {
     toast(
       (t) => (
         <div>
-          <p className="font-semibold">
-            ⚠️ Restore sẽ ghi đè dữ liệu của bạn
-          </p>
+          <p className="font-semibold">⚠️ Restore sẽ ghi đè dữ liệu của bạn</p>
           <div className="flex gap-2 mt-2">
             <button
               onClick={async () => {
@@ -161,7 +217,7 @@ export default function DatabaseTools() {
           </div>
         </div>
       ),
-      { duration: 6000 }
+      { duration: 6000 },
     );
   };
 
@@ -178,6 +234,14 @@ export default function DatabaseTools() {
               className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
             >
               Backup
+            </button>
+
+            <button
+              onClick={handleAdminRestore}
+              disabled={loading}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+            >
+              Restore
             </button>
 
             <button

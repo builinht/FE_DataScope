@@ -5,6 +5,17 @@ export default function AirQualityCard({
   fallback = false,
   className = "",
 }) {
+
+  const formatValue = (value) => {
+    if (value == null) return "-";
+
+    const num = Number(value);
+
+    if (num < 1) return num.toFixed(3); // 0.002
+    if (num < 10) return num.toFixed(1); // 9.25
+    return num.toFixed(1); // 58.1
+  };
+
   const getStatusColor = (status) => {
     const s = (status || "").toLowerCase();
     if (s.includes("good")) return "text-green-600";
@@ -30,12 +41,18 @@ export default function AirQualityCard({
   const getHealthAdvisory = (status) => {
     if (!status) return "";
     const s = status.toLowerCase();
-    if (s.includes("good")) return "Air quality is satisfactory. Enjoy outdoor activities.";
-    if (s.includes("moderate")) return "Air quality is acceptable. Sensitive groups should take caution.";
-    if (s.includes("unhealthy for sensitive")) return "Sensitive groups should reduce prolonged outdoor activities.";
-    if (s.includes("unhealthy")) return "Everyone should limit prolonged outdoor activities.";
-    if (s.includes("very unhealthy")) return "Health alert: everyone may experience serious effects.";
-    if (s.includes("hazardous")) return "Health warning: emergency conditions. Avoid outdoor activities.";
+    if (s.includes("good"))
+      return "Air quality is satisfactory. Enjoy outdoor activities.";
+    if (s.includes("moderate"))
+      return "Air quality is acceptable. Sensitive groups should take caution.";
+    if (s.includes("unhealthy for sensitive"))
+      return "Sensitive groups should reduce prolonged outdoor activities.";
+    if (s.includes("unhealthy"))
+      return "Everyone should limit prolonged outdoor activities.";
+    if (s.includes("very unhealthy"))
+      return "Health alert: everyone may experience serious effects.";
+    if (s.includes("hazardous"))
+      return "Health warning: emergency conditions. Avoid outdoor activities.";
     return "";
   };
 
@@ -52,13 +69,54 @@ export default function AirQualityCard({
 
   const getAdvisoryStyle = (status) => {
     const s = (status || "").toLowerCase();
-    if (s.includes("good")) return { bg: "bg-green-50", border: "border-green-200", text: "text-green-800", icon: "✅" };
-    if (s.includes("moderate")) return { bg: "bg-yellow-50", border: "border-yellow-200", text: "text-yellow-800", icon: "⚠️" };
-    if (s.includes("unhealthy for sensitive")) return { bg: "bg-orange-50", border: "border-orange-200", text: "text-orange-800", icon: "⚠️" };
-    if (s.includes("unhealthy")) return { bg: "bg-red-50", border: "border-red-200", text: "text-red-800", icon: "💡" };
-    if (s.includes("very unhealthy")) return { bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-800", icon: "☠️" };
-    if (s.includes("hazardous")) return { bg: "bg-red-100", border: "border-red-300", text: "text-red-900", icon: "☠️" };
-    return { bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-800", icon: "ℹ️" };
+    if (s.includes("good"))
+      return {
+        bg: "bg-green-50",
+        border: "border-green-200",
+        text: "text-green-800",
+        icon: "✅",
+      };
+    if (s.includes("moderate"))
+      return {
+        bg: "bg-yellow-50",
+        border: "border-yellow-200",
+        text: "text-yellow-800",
+        icon: "⚠️",
+      };
+    if (s.includes("unhealthy for sensitive"))
+      return {
+        bg: "bg-orange-50",
+        border: "border-orange-200",
+        text: "text-orange-800",
+        icon: "⚠️",
+      };
+    if (s.includes("unhealthy"))
+      return {
+        bg: "bg-red-50",
+        border: "border-red-200",
+        text: "text-red-800",
+        icon: "💡",
+      };
+    if (s.includes("very unhealthy"))
+      return {
+        bg: "bg-purple-50",
+        border: "border-purple-200",
+        text: "text-purple-800",
+        icon: "☠️",
+      };
+    if (s.includes("hazardous"))
+      return {
+        bg: "bg-red-100",
+        border: "border-red-300",
+        text: "text-red-900",
+        icon: "☠️",
+      };
+    return {
+      bg: "bg-gray-50",
+      border: "border-gray-200",
+      text: "text-gray-800",
+      icon: "ℹ️",
+    };
   };
 
   // Nếu không có dữ liệu
@@ -90,73 +148,98 @@ export default function AirQualityCard({
   const latestPerStation = Object.values(
     airQuality.reduce((acc, aq) => {
       const key = `${aq.locationName}-${aq.parameter}`;
-      if (!acc[key] || new Date(aq.measuredAt) > new Date(acc[key].measuredAt)) {
+      if (
+        !acc[key] ||
+        new Date(aq.measuredAt) > new Date(acc[key].measuredAt)
+      ) {
         acc[key] = aq;
       }
       return acc;
-    }, {})
+    }, {}),
   );
 
-  latestPerStation.sort((a, b) => new Date(b.measuredAt) - new Date(a.measuredAt));
+  latestPerStation.sort(
+    (a, b) => new Date(b.measuredAt) - new Date(a.measuredAt),
+  );
 
   const primaryMeasurement =
-    latestPerStation.find(aq => aq.parameter?.toLowerCase().includes("pm2.5") || aq.parameter?.toLowerCase().includes("pm25"))
-    || latestPerStation[0];
+    latestPerStation.find(
+      (aq) =>
+        aq.parameter?.toLowerCase().includes("pm2.5") ||
+        aq.parameter?.toLowerCase().includes("pm25"),
+    ) || latestPerStation[0];
 
   return (
-    <div className={`bg-white rounded-lg p-6 shadow ${className}`}>
-      <div className="flex items-center gap-2 mb-4">
+    <div
+      className={`bg-white rounded-xl p-8 shadow-sm border border-gray-100 ${className}`}
+    >
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-8">
         <span className="text-2xl">💨</span>
         <h3 className="text-xl font-semibold text-gray-800">Air Quality</h3>
       </div>
 
       {/* Primary Measurement */}
       {primaryMeasurement && (
-        <div className="mb-6 text-center">
-          <div className="mb-2 text-3xl font-bold text-gray-800">
-            {primaryMeasurement.value} <span className="text-xl text-gray-600">{primaryMeasurement.unit}</span>
+        <div className="text-center space-y-5">
+          {/* Value */}
+          <div className="leading-none">
+            <div className="text-3xl font-bold text-gray-800">
+              {formatValue(primaryMeasurement.value)}
+              <span className="text-xl text-gray-500 ml-2">
+                {primaryMeasurement.unit}
+              </span>
+            </div>
           </div>
-          <div className={`inline-block px-4 py-1 rounded-full ${getStatusBgColor(primaryMeasurement.status)} ${getStatusColor(primaryMeasurement.status)} ${getStatusBorderColor(primaryMeasurement.status)}`}>
-            {primaryMeasurement.status}
+
+          {/* Status */}
+          <div>
+            <span
+              className={`inline-block px-6 py-2 rounded-full text-sm font-medium border ${getStatusBgColor(
+                primaryMeasurement.status,
+              )} ${getStatusColor(primaryMeasurement.status)} ${getStatusBorderColor(
+                primaryMeasurement.status,
+              )}`}
+            >
+              {primaryMeasurement.status}
+            </span>
           </div>
-          <p className="text-sm text-gray-500 mt-2">{primaryMeasurement.parameter} — {primaryMeasurement.locationName}</p>
-          <div className={`mt-2 ${getAdvisoryStyle(primaryMeasurement.status).bg} ${getAdvisoryStyle(primaryMeasurement.status).border} rounded-lg p-2`}>
-            <p className={`text-sm ${getAdvisoryStyle(primaryMeasurement.status).text} flex items-center gap-2`}>
-              <span className="text-xl">{getAdvisoryStyle(primaryMeasurement.status).icon}</span>
-              {primaryMeasurement.advisory || getHealthAdvisory(primaryMeasurement.status)}
+
+          {/* Advisory */}
+          <div
+            className={`mx-auto max-w-md ${
+              getAdvisoryStyle(primaryMeasurement.status).bg
+            } border ${
+              getAdvisoryStyle(primaryMeasurement.status).border
+            } rounded-xl px-5 py-3`}
+          >
+            <p
+              className={`text-sm ${
+                getAdvisoryStyle(primaryMeasurement.status).text
+              } flex items-center justify-center gap-2`}
+            >
+              <span className="text-lg">
+                {getAdvisoryStyle(primaryMeasurement.status).icon}
+              </span>
+              {primaryMeasurement.advisory ||
+                getHealthAdvisory(primaryMeasurement.status)}
             </p>
           </div>
-          {/* <p className="text-xs text-gray-400 mt-2">Measured at: {new Date(primaryMeasurement.measuredAt).toLocaleString()}</p> */}
         </div>
       )}
 
-      {/* All Measurements List */}
-      <div className="space-y-3">
-        {latestPerStation.map((aq, i) => (
-          <div key={i} className="border-t border-gray-100 pt-3">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm font-medium text-gray-700">{aq.parameter}</p>
-                <p className="text-xs text-gray-500">Station: {aq.locationName}</p>
-                {aq.measuredAt && (
-                  <p className="text-xs text-gray-400">Measured at: {new Date(aq.measuredAt).toLocaleString()}</p>
-                )}
-              </div>
-              <div className="text-right">
-                <p className="text-lg font-semibold text-gray-800">
-                  {aq.value} <span className="text-sm text-gray-600">{aq.unit}</span>
-                </p>
-                <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusBgColor(aq.status)}`} style={{ color: getStatusColor(aq.status) }}>
-                  {aq.status}
-                </span>
-                {aq.advisory && (
-                  <p className="text-xs text-red-600 mt-1">{aq.advisory}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* Divider */}
+      <div className="border-t border-gray-100 my-8"></div>
+
+      {/* Footer */}
+      {primaryMeasurement && (
+        <div className="flex justify-center items-center gap-2 text-sm">
+          <span className="tracking-wider text-gray-500">Measuring:</span>
+          <span className="font-semibold text-gray-600">
+            {primaryMeasurement.parameter?.toUpperCase()}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

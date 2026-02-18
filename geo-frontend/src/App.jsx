@@ -7,13 +7,13 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import useAuth from "./auth/useAuth";
 import Navbar from "./components/Navbar";
 import { Toaster } from "react-hot-toast";
+import Analytics from "./pages/Analytics";
 
 function App() {
   const { loading, isAuthenticated } = useAuth();
 
   return (
     <>
-      {/* ✅ TOASTER LUÔN LUÔN TỒN TẠI */}
       <Toaster
         position="top-right"
         toastOptions={{
@@ -42,6 +42,7 @@ function App() {
                   <Routes>
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/records" element={<Records />} />
+                    <Route path="/analytics" element={<Analytics/>} />
                   </Routes>
                 </ProtectedRoute>
               }
