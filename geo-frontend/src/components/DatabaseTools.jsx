@@ -1,30 +1,58 @@
 import { useState } from "react";
 import api from "../api";
-import { backupDB, exportDB, importDB, restoreLatestDB } from "../services/dbAdminService";
+import {
+  backupDB,
+  exportDB,
+  importDB,
+  restoreLatestDB,
+} from "../services/dbAdminService";
 import { getUser } from "../utils/auth";
 import toast from "react-hot-toast";
 
-// ===== USER EXPORT =====
+/* ===========================
+   USER-SPECIFIC API HELPERS
+   (gọi endpoint /user/db/...)
+=========================== */
+
+/**
+ * Export records của user hiện tại → tải file JSON về máy.
+ * Endpoint: GET /api/user/db/export
+ */
 const exportUserDB = async () => {
   const res = await api.get("/user/db/export", { responseType: "blob" });
+
+  // Lấy tên file từ header nếu có, fallback về tên mặc định
+  const disposition = res.headers["content-disposition"];
+  const match = disposition?.match(/filename="(.+)"/);
+  const fileName = match?.[1] ?? `geoinsight_user_export_${Date.now()}.json`;
+
   const blob = new Blob([res.data], { type: "application/json" });
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "geoinsight_user_export.json";
+  a.download = fileName;
   a.click();
   window.URL.revokeObjectURL(url);
 };
 
-// ===== USER IMPORT =====
+/**
+ * Import records từ file JSON vào account của user hiện tại.
+ * Endpoint: POST /api/user/db/import
+ * - Merge mode: KHÔNG xóa data cũ
+ * - Server tự gắn userId hiện tại vào mọi record được import
+ */
 const importUserDB = async (file) => {
   const formData = new FormData();
   formData.append("file", file);
-  await api.post("/user/db/import", formData, {
+  const res = await api.post("/user/db/import", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
+  return res.data; // { message, imported, skipped }
 };
 
+/* ===========================
+   COMPONENT
+=========================== */
 export default function DatabaseTools() {
   const user = getUser();
   const role = user?.role;
@@ -35,9 +63,7 @@ export default function DatabaseTools() {
 
   if (!user) return null;
 
-  /* ======================
-        ADMIN
-  ====================== */
+  /* ── ADMIN: BACKUP ── */
   const handleBackup = async () => {
     const toastId = toast.loading("⏳ Đang backup...");
     try {
@@ -52,9 +78,7 @@ export default function DatabaseTools() {
     }
   };
 
-  /* ======================
-      ADMIN RESTORE
-====================== */
+  /* ── ADMIN: RESTORE ── */
   const handleAdminRestore = async () => {
     toast(
       (t) => (
@@ -62,28 +86,19 @@ export default function DatabaseTools() {
           <p className="font-semibold text-red-600">
             ⚠️ Restore sẽ ghi đè TOÀN BỘ database
           </p>
-
           <div className="flex gap-2 mt-2">
             <button
               onClick={async () => {
                 toast.dismiss(t.id);
-
                 const loadingId = toast.loading("⏳ Đang restore...");
-
                 try {
                   setLoading(true);
                   await restoreLatestDB(api);
-
-                  toast.success("Restore thành công", {
-                    id: loadingId,
-                  });
-
+                  toast.success("Restore thành công", { id: loadingId });
                   setTimeout(() => window.location.reload(), 1000);
                 } catch (e) {
                   console.error(e);
-                  toast.error("Restore thất bại", {
-                    id: loadingId,
-                  });
+                  toast.error("Restore thất bại", { id: loadingId });
                 } finally {
                   setLoading(false);
                 }
@@ -92,7 +107,6 @@ export default function DatabaseTools() {
             >
               Restore
             </button>
-
             <button
               onClick={() => toast.dismiss(t.id)}
               className="px-3 py-1 bg-gray-300 rounded"
@@ -106,17 +120,12 @@ export default function DatabaseTools() {
     );
   };
 
-  /* ======================
-        EXPORT
-  ====================== */
-  const handleExport = async () => {
+  /* ── ADMIN: EXPORT (toàn bộ DB) ── */
+  const handleAdminExport = async () => {
     const toastId = toast.loading("⏳ Đang export...");
     try {
       setLoading(true);
-      if (isAdmin) await exportDB(api);
-      else if (isUser) await exportUserDB();
-      else throw new Error("No permission");
-
+      await exportDB(api);
       toast.success("Export thành công", { id: toastId });
     } catch (e) {
       console.error(e);
@@ -126,63 +135,53 @@ export default function DatabaseTools() {
     }
   };
 
-  /* ======================
-        IMPORT
-  ====================== */
-  const handleImport = async (file) => {
+  /* ── ADMIN: IMPORT (toàn bộ DB) ── */
+  const handleAdminImport = async (file) => {
     if (!file) return;
-
     const toastId = toast.loading("⏳ Đang import...");
     try {
       setLoading(true);
-
-      if (isAdmin) await importDB(api, file);
-      else if (isUser) await importUserDB(file);
-      else throw new Error("No permission");
-
-      toast.success("Import thành công", { id: toastId });
-
-      // ✅ reset page sau import
+      await importDB(api, file);
+      toast.success("✅ Import thành công", { id: toastId });
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
       console.error(e);
-      toast.error("Import thất bại", { id: toastId });
+      toast.error("❌ Import thất bại", { id: toastId });
     } finally {
       setLoading(false);
     }
   };
 
-  /* ======================
-        USER BACKUP
-  ====================== */
+  /* ── USER: BACKUP ── */
   const handleUserBackup = async () => {
     const toastId = toast.loading("⏳ Đang backup dữ liệu của bạn...");
     try {
       setLoading(true);
-
       const { data } = await api.post("/user/db/backup");
-
       if (data.success) {
-        toast.success("Backup thành công", { id: toastId });
+        toast.success(`✅ Backup thành công — ${data.total} records`, {
+          id: toastId,
+        });
       } else {
-        toast.error("Backup thất bại", { id: toastId });
+        toast.error("❌ Backup thất bại", { id: toastId });
       }
     } catch (e) {
       console.error(e);
-      toast.error("Backup thất bại", { id: toastId });
+      toast.error("❌ Backup thất bại", { id: toastId });
     } finally {
       setLoading(false);
     }
   };
 
-  /* ======================
-        USER RESTORE
-  ====================== */
+  /* ── USER: RESTORE ── */
   const handleUserRestore = async () => {
     toast(
       (t) => (
         <div>
           <p className="font-semibold">⚠️ Restore sẽ ghi đè dữ liệu của bạn</p>
+          <p className="text-sm text-gray-500 mt-1">
+            Data hiện tại sẽ bị xóa và thay bằng bản backup gần nhất.
+          </p>
           <div className="flex gap-2 mt-2">
             <button
               onClick={async () => {
@@ -191,15 +190,11 @@ export default function DatabaseTools() {
                 try {
                   setLoading(true);
                   await api.post("/user/db/restore");
-                  toast.success("Restore thành công", {
-                    id: loadingId,
-                  });
+                  toast.success("✅ Restore thành công", { id: loadingId });
                   setTimeout(() => window.location.reload(), 800);
                 } catch (e) {
                   console.error(e);
-                  toast.error("Restore thất bại", {
-                    id: loadingId,
-                  });
+                  toast.error("❌ Restore thất bại", { id: loadingId });
                 } finally {
                   setLoading(false);
                 }
@@ -219,6 +214,49 @@ export default function DatabaseTools() {
       ),
       { duration: 6000 },
     );
+  };
+
+  /* ── USER: EXPORT ── */
+  const handleUserExport = async () => {
+    const toastId = toast.loading("⏳ Đang export records của bạn...");
+    try {
+      setLoading(true);
+      await exportUserDB();
+      toast.success("Export thành công — file JSON đã tải về", {
+        id: toastId,
+      });
+    } catch (e) {
+      console.error(e);
+      // Nếu server trả 404 (không có records)
+      const msg =
+        e.response?.status === 404
+          ? "Không có records để export"
+          : "Export thất bại";
+      toast.error(`${msg}`, { id: toastId });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ── USER: IMPORT ── */
+  const handleUserImport = async (file) => {
+    if (!file) return;
+    const toastId = toast.loading("⏳ Đang import records...");
+    try {
+      setLoading(true);
+      const result = await importUserDB(file);
+      toast.success(
+        `✅ Import thành công — ${result.imported} records${result.skipped > 0 ? `, bỏ qua ${result.skipped}` : ""}`,
+        { id: toastId },
+      );
+      setTimeout(() => window.location.reload(), 800);
+    } catch (e) {
+      console.error(e);
+      const msg = e.response?.data?.message ?? "Import thất bại";
+      toast.error(`❌ ${msg}`, { id: toastId });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -245,7 +283,7 @@ export default function DatabaseTools() {
             </button>
 
             <button
-              onClick={handleExport}
+              onClick={handleAdminExport}
               disabled={loading}
               className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
             >
@@ -258,7 +296,7 @@ export default function DatabaseTools() {
                 type="file"
                 accept=".json"
                 hidden
-                onChange={(e) => handleImport(e.target.files[0])}
+                onChange={(e) => handleAdminImport(e.target.files[0])}
               />
             </label>
           </>
@@ -281,6 +319,23 @@ export default function DatabaseTools() {
             >
               Restore
             </button>
+            <button
+              onClick={handleUserExport}
+              disabled={loading}
+              className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+            >
+              Export
+            </button>
+
+            <label className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded text-center cursor-pointer">
+              Import
+              <input
+                type="file"
+                accept=".json"
+                hidden
+                onChange={(e) => handleUserImport(e.target.files[0])}
+              />
+            </label>
           </>
         )}
       </div>
