@@ -1,8 +1,11 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { getUser, logout } from "../utils/auth";
+import { getUser } from "../utils/auth";
+import { useContext } from "react";
+import AuthContext from "../auth/AuthContext";
 // import useAuth from "../auth/useAuth";
 
 export default function Navbar() {
+  const { logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const location = useLocation();
   const user = getUser();
