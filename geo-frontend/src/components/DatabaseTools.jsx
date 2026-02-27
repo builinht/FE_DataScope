@@ -78,47 +78,77 @@ export default function DatabaseTools() {
     }
   };
 
-  /* ── ADMIN: RESTORE ── */
-  const handleAdminRestore = async () => {
-    toast(
-      (t) => (
+  /* ── ADMIN: RESTORE (Confirm by typing) ── */
+const handleAdminRestore = async () => {
+  toast((t) => {
+    let confirmText = "";
+
+    return (
+      <div className="space-y-3">
         <div>
-          <p className="font-semibold text-red-600">
+          <p className="font-semibold text-red-600 text-lg">
             ⚠️ Restore sẽ ghi đè TOÀN BỘ database
           </p>
-          <div className="flex gap-2 mt-2">
-            <button
-              onClick={async () => {
-                toast.dismiss(t.id);
-                const loadingId = toast.loading("⏳ Đang restore...");
-                try {
-                  setLoading(true);
-                  await restoreLatestDB(api);
-                  toast.success("Restore thành công", { id: loadingId });
-                  setTimeout(() => window.location.reload(), 1000);
-                } catch (e) {
-                  console.error(e);
-                  toast.error("Restore thất bại", { id: loadingId });
-                } finally {
-                  setLoading(false);
-                }
-              }}
-              className="px-3 py-1 bg-red-600 text-white rounded"
-            >
-              Restore
-            </button>
-            <button
-              onClick={() => toast.dismiss(t.id)}
-              className="px-3 py-1 bg-gray-300 rounded"
-            >
-              Huỷ
-            </button>
-          </div>
+          <p className="text-sm text-gray-600 mt-1">
+            Hành động này không thể hoàn tác.
+          </p>
         </div>
-      ),
-      { duration: 6000 },
+
+        <div>
+          <p className="text-sm">
+            Nhập <span className="font-bold">RESTORE</span> để xác nhận:
+          </p>
+          <input
+            type="text"
+            onChange={(e) => (confirmText = e.target.value)}
+            className="border rounded px-2 py-1 w-full mt-1"
+            placeholder="Gõ RESTORE vào đây..."
+          />
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={async () => {
+              if (confirmText !== "RESTORE") {
+                toast.error("❌ Bạn phải nhập đúng RESTORE để xác nhận");
+                return;
+              }
+
+              toast.dismiss(t.id);
+              const loadingId = toast.loading("⏳ Đang restore...");
+
+              try {
+                setLoading(true);
+                await restoreLatestDB(api);
+                toast.success("Restore thành công", {
+                  id: loadingId,
+                });
+                setTimeout(() => window.location.reload(), 1000);
+              } catch (e) {
+                console.error(e);
+                toast.error("❌ Restore thất bại", {
+                  id: loadingId,
+                });
+              } finally {
+                setLoading(false);
+              }
+            }}
+            className="px-3 py-1 bg-red-600 text-white rounded"
+          >
+            Xác nhận Restore
+          </button>
+
+          <button
+            onClick={() => toast.dismiss(t.id)}
+            className="px-3 py-1 bg-gray-300 rounded"
+          >
+            Huỷ
+          </button>
+        </div>
+      </div>
     );
-  };
+  }, { duration: 10000 });
+};
 
   /* ── ADMIN: EXPORT (toàn bộ DB) ── */
   const handleAdminExport = async () => {
@@ -142,7 +172,7 @@ export default function DatabaseTools() {
     try {
       setLoading(true);
       await importDB(api, file);
-      toast.success("✅ Import thành công", { id: toastId });
+      toast.success("Import thành công", { id: toastId });
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
       console.error(e);
@@ -159,7 +189,7 @@ export default function DatabaseTools() {
       setLoading(true);
       const { data } = await api.post("/user/db/backup");
       if (data.success) {
-        toast.success(`✅ Backup thành công — ${data.total} records`, {
+        toast.success(`Backup thành công — ${data.total} records`, {
           id: toastId,
         });
       } else {
@@ -190,7 +220,7 @@ export default function DatabaseTools() {
                 try {
                   setLoading(true);
                   await api.post("/user/db/restore");
-                  toast.success("✅ Restore thành công", { id: loadingId });
+                  toast.success("Restore thành công", { id: loadingId });
                   setTimeout(() => window.location.reload(), 800);
                 } catch (e) {
                   console.error(e);
@@ -246,7 +276,7 @@ export default function DatabaseTools() {
       setLoading(true);
       const result = await importUserDB(file);
       toast.success(
-        `✅ Import thành công — ${result.imported} records${result.skipped > 0 ? `, bỏ qua ${result.skipped}` : ""}`,
+        `Import thành công — ${result.imported} records${result.skipped > 0 ? `, bỏ qua ${result.skipped}` : ""}`,
         { id: toastId },
       );
       setTimeout(() => window.location.reload(), 800);

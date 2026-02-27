@@ -105,16 +105,11 @@ export default function Records() {
 
   const handleDelete = async (rec) => {
     try {
-      const recordId = rec.meta?.recordId || rec._id;
+      const recordId = rec._id;
       setDeleting(recordId);
 
       // Optimistic UI - xóa theo recordId
-      setRecords((prev) =>
-        prev.filter((r) => {
-          const rId = r.meta?.recordId || r._id;
-          return rId !== recordId;
-        }),
-      );
+      setRecords((prev) => prev.filter((r) => r._id !== recordId));
 
       await api.delete(`/records/${recordId}`);
     } catch (err) {
@@ -122,7 +117,7 @@ export default function Records() {
       setError("❌ Failed to delete snapshot.");
 
       // rollback
-      setRecords((prev) => [...prev, rec]);
+      fetchRecords();
     } finally {
       setDeleting(null);
     }
@@ -211,7 +206,7 @@ export default function Records() {
         RENDER CARD
       ====================== */
   const renderCard = (rec) => {
-    const recordId = rec.meta?.recordId || rec._id;
+    const recordId = rec._id;
 
     return (
       <div
@@ -241,7 +236,9 @@ export default function Records() {
 
           {/* QUICK SUMMARY ROW */}
           <div className="flex flex-wrap gap-3 text-sm mb-2">
-            {rec.temperature != null && <span>🌡️ {formatValue(rec.temperature)}°C</span>}
+            {rec.temperature != null && (
+              <span>🌡️ {formatValue(rec.temperature)}°C</span>
+            )}
             {rec.weather?.humidity != null && (
               <span>💧 {rec.weather.humidity}%</span>
             )}
