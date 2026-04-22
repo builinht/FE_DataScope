@@ -10,7 +10,7 @@ import { Toaster } from "react-hot-toast";
 import Analytics from "./pages/Analytics";
 
 function App() {
-  const { loading, isAuthenticated } = useAuth();
+  const { loading } = useAuth();
 
   return (
     <>
@@ -21,7 +21,6 @@ function App() {
           style: { fontSize: "14px" },
         }}
       />
-
       {loading ? (
         <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-2">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -29,21 +28,32 @@ function App() {
         </div>
       ) : (
         <Router>
-          {isAuthenticated && <Navbar />}
+          {/* ✅ Navbar hiển thị cho cả khách lẫn user đăng nhập */}
+          <Navbar />
 
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
 
+            {/* ✅ Dashboard PUBLIC — khách vào được không cần đăng nhập */}
+            <Route path="/" element={<Dashboard />} />
+
+            {/* 🔒 Records — chỉ user đã đăng nhập */}
             <Route
-              path="/*"
+              path="/records"
               element={
                 <ProtectedRoute>
-                  <Routes>
-                    <Route path="/" element={<Dashboard />} />
-                    <Route path="/records" element={<Records />} />
-                    <Route path="/analytics" element={<Analytics/>} />
-                  </Routes>
+                  <Records />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* 🔒 Analytics — chỉ user đã đăng nhập */}
+            <Route
+              path="/analytics"
+              element={
+                <ProtectedRoute>
+                  <Analytics />
                 </ProtectedRoute>
               }
             />
