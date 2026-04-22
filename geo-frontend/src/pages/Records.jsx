@@ -15,33 +15,49 @@ export default function Records() {
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(null);
 
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState("newest");
+  const [groupByCountry, setGroupByCountry] = useState(false);
+  const [viewMode, setViewMode] = useState("grid");
+
+  const [page, setPage] = useState(1);
+  const [limit] = useState(20);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 1,
+    hasNext: false,
+    hasPrev: false,
+  });
+
   const formatValue = (value) => {
     if (value == null) return "-";
     const num = Number(value);
+    if (Number.isNaN(num)) return "-";
     if (num < 1) return num.toFixed(3);
-    if (num < 10) return num.toFixed(1);
     return num.toFixed(1);
   };
 
-  // ✅ Filter & Sort states
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState("newest"); // newest, oldest, country, temp, pm25
-  const [groupByCountry, setGroupByCountry] = useState(false);
-  const [viewMode, setViewMode] = useState("grid"); // grid | list
-
-  // Redirect nếu chưa login
   useEffect(() => {
     if (!user) navigate("/login");
   }, [user, navigate]);
 
-  // Fetch saved records (TIME-SERIES CLEAN VERSION)
-  const fetchRecords = async () => {
+  const fetchRecords = async (currentPage = page) => {
     setLoading(true);
     setError("");
 
     try {
-      const res = await api.get("/records");
-      const data = res.data || [];
+      const res = await api.get("/records", {
+        params: {
+          page: currentPage,
+          limit,
+        },
+      });
+
+      const payload = res.data || {};
+      const data = Array.isArray(payload.data) ? payload.data : [];
+      const paging = payload.pagination || {};
 
       const normalized = data.map((r) => {
         const meta = r.meta || {};
@@ -66,17 +82,15 @@ export default function Records() {
           description: r.weatherDescription,
         };
 
-        // Build airQuality array từ pm25
         const airQuality =
           r.pm25 != null
             ? [
                 {
-                  // locationName: metadata.capital || metadata.country,
                   parameter: "PM2.5",
                   value: r.pm25,
                   unit: "µg/m³",
-                  // measuredAt: r.timestamp,
                   status: r.airQualityStatus,
+                  measuredAt: r.timestamp,
                 },
               ]
             : [];
@@ -91,6 +105,14 @@ export default function Records() {
       });
 
       setRecords(normalized);
+      setPagination({
+        page: paging.page || 1,
+        limit: paging.limit || limit,
+        total: paging.total || 0,
+        totalPages: paging.totalPages || 1,
+        hasNext: paging.hasNext || false,
+        hasPrev: paging.hasPrev || false,
+      });
     } catch (err) {
       console.error(err);
       setError("❌ Failed to fetch records.");
@@ -100,46 +122,40 @@ export default function Records() {
   };
 
   useEffect(() => {
-    fetchRecords();
-  }, []);
+    fetchRecords(page);
+  }, [page]);
 
   const handleDelete = async (rec) => {
     try {
       const recordId = rec._id;
       setDeleting(recordId);
 
-      // Optimistic UI - xóa theo recordId
       setRecords((prev) => prev.filter((r) => r._id !== recordId));
 
       await api.delete(`/records/${recordId}`);
+
+      fetchRecords(page);
     } catch (err) {
       console.error(err);
       setError("❌ Failed to delete snapshot.");
-
-      // rollback
-      fetchRecords();
+      fetchRecords(page);
     } finally {
       setDeleting(null);
     }
   };
 
-  /* ======================
-        FILTER & SORT LOGIC
-      ====================== */
   const filteredAndSortedRecords = useMemo(() => {
     let filtered = [...records];
 
-    // 🔍 SEARCH FILTER
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(
         (r) =>
           r.metadata?.country?.toLowerCase().includes(term) ||
-          r.metadata?.capital?.toLowerCase().includes(term),
+          r.metadata?.capital?.toLowerCase().includes(term)
       );
     }
 
-    // 📊 SORT
     filtered.sort((a, b) => {
       switch (sortBy) {
         case "newest":
@@ -148,7 +164,7 @@ export default function Records() {
           return new Date(a.timestamp) - new Date(b.timestamp);
         case "country":
           return (a.metadata?.country || "").localeCompare(
-            b.metadata?.country || "",
+            b.metadata?.country || ""
           );
         case "temp":
           return (b.temperature || 0) - (a.temperature || 0);
@@ -162,49 +178,48 @@ export default function Records() {
     return filtered;
   }, [records, searchTerm, sortBy]);
 
-  /* ======================
-        GROUP BY COUNTRY
-      ====================== */
   const groupedRecords = useMemo(() => {
     if (!groupByCountry) return null;
 
     const groups = {};
     filteredAndSortedRecords.forEach((rec) => {
       const country = rec.metadata?.country || "Unknown";
-      if (!groups[country]) {
-        groups[country] = [];
-      }
+      if (!groups[country]) groups[country] = [];
       groups[country].push(rec);
     });
 
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
   }, [filteredAndSortedRecords, groupByCountry]);
 
-  /* ======================
-        STATS
-      ====================== */
   const stats = useMemo(() => {
     const uniqueCountries = new Set(
-      records.map((r) => r.metadata?.country).filter(Boolean),
+      records.map((r) => r.metadata?.country).filter(Boolean)
     );
+
+    const validTemps = records.filter((r) => r.temperature != null);
+    const validPM25 = records.filter((r) => r.pm25 != null);
+
     const avgTemp =
-      records.reduce((sum, r) => sum + (r.temperature || 0), 0) /
-        records.length || 0;
+      validTemps.length > 0
+        ? validTemps.reduce((sum, r) => sum + Number(r.temperature || 0), 0) /
+          validTemps.length
+        : 0;
+
     const avgPM25 =
-      records.filter((r) => r.pm25).reduce((sum, r) => sum + r.pm25, 0) /
-        records.filter((r) => r.pm25).length || 0;
+      validPM25.length > 0
+        ? validPM25.reduce((sum, r) => sum + Number(r.pm25 || 0), 0) /
+          validPM25.length
+        : 0;
 
     return {
-      total: records.length,
+      currentPageCount: records.length,
+      total: pagination.total,
       countries: uniqueCountries.size,
       avgTemp: avgTemp.toFixed(1),
       avgPM25: avgPM25.toFixed(1),
     };
-  }, [records]);
+  }, [records, pagination.total]);
 
-  /* ======================
-        RENDER CARD
-      ====================== */
   const renderCard = (rec) => {
     const recordId = rec._id;
 
@@ -216,12 +231,10 @@ export default function Records() {
         }`}
       >
         <div className={viewMode === "list" ? "flex-1" : ""}>
-          {/* COUNTRY TITLE */}
           <h2 className="text-lg font-semibold text-blue-600 mb-1">
             {rec.country || "Unknown"}
           </h2>
 
-          {/* TIMESTAMP */}
           {rec.timestamp && (
             <p className="text-gray-400 text-xs mb-2">
               {new Date(rec.timestamp).toLocaleString("vi-VN", {
@@ -234,7 +247,6 @@ export default function Records() {
             </p>
           )}
 
-          {/* QUICK SUMMARY ROW */}
           <div className="flex flex-wrap gap-3 text-sm mb-2">
             {rec.temperature != null && (
               <span>🌡️ {formatValue(rec.temperature)}°C</span>
@@ -242,10 +254,11 @@ export default function Records() {
             {rec.weather?.humidity != null && (
               <span>💧 {rec.weather.humidity}%</span>
             )}
-            {rec.pm25 != null && <span>🏭 {formatValue(rec.pm25)} µg/m³</span>}
+            {rec.pm25 != null && (
+              <span>🏭 {formatValue(rec.pm25)} µg/m³</span>
+            )}
           </div>
 
-          {/* COLLAPSIBLE DETAILS (nhỏ gọn hơn) */}
           <details className="text-xs text-gray-600">
             <summary className="cursor-pointer text-blue-500">
               View details
@@ -264,7 +277,6 @@ export default function Records() {
           </details>
         </div>
 
-        {/* DELETE BUTTON */}
         <button
           onClick={() => handleDelete(rec)}
           disabled={deleting === recordId}
@@ -282,22 +294,19 @@ export default function Records() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      {/* HEADER */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-purple-600">
             📚 Saved Snapshots
           </h1>
-          {/* STATS */}
-          <div className="flex gap-4 mt-2 text-sm text-gray-600">
-            <span>📊 {stats.total} records</span>
-            <span>🌍 {stats.countries} countries</span>
-            {stats.total > 0 && (
+          <div className="flex gap-4 mt-2 text-sm text-gray-600 flex-wrap">
+            <span>📊 {stats.total} total records</span>
+            <span>📄 {stats.currentPageCount} records this page</span>
+            <span>🌍 {stats.countries} countries this page</span>
+            {stats.currentPageCount > 0 && (
               <>
                 <span>🌡️ {stats.avgTemp}°C avg</span>
-                {stats.avgPM25 !== "NaN" && (
-                  <span>🏭 {stats.avgPM25} PM2.5 avg</span>
-                )}
+                <span>🏭 {stats.avgPM25} PM2.5 avg</span>
               </>
             )}
           </div>
@@ -305,7 +314,7 @@ export default function Records() {
 
         <div className="flex gap-2">
           <button
-            onClick={fetchRecords}
+            onClick={() => fetchRecords(page)}
             className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           >
             🔄 Refresh
@@ -319,10 +328,8 @@ export default function Records() {
         </div>
       </div>
 
-      {/* FILTERS & CONTROLS */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* SEARCH */}
           <div className="relative">
             <input
               type="text"
@@ -341,7 +348,6 @@ export default function Records() {
             )}
           </div>
 
-          {/* SORT */}
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
@@ -354,7 +360,6 @@ export default function Records() {
             <option value="pm25">🏭 Highest PM2.5</option>
           </select>
 
-          {/* GROUP */}
           <label className="flex items-center gap-2 border p-2 rounded cursor-pointer hover:bg-gray-50">
             <input
               type="checkbox"
@@ -365,7 +370,6 @@ export default function Records() {
             <span>Group by country</span>
           </label>
 
-          {/* VIEW MODE */}
           <div className="flex gap-2">
             <button
               onClick={() => setViewMode("grid")}
@@ -390,26 +394,24 @@ export default function Records() {
           </div>
         </div>
 
-        {/* RESULT COUNT */}
         <p className="text-sm text-gray-500 mt-2">
-          Showing {filteredAndSortedRecords.length} of {records.length} records
+          Showing {filteredAndSortedRecords.length} records on page {pagination.page} of{" "}
+          {pagination.totalPages}
+          <span className="ml-2">({pagination.total} total)</span>
           {searchTerm && (
             <span className="font-semibold"> matching "{searchTerm}"</span>
           )}
         </p>
       </div>
 
-      {/* LOADING */}
       {loading && (
         <div className="flex justify-center items-center py-20">
           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-purple-600"></div>
         </div>
       )}
 
-      {/* ERROR */}
       {error && <p className="text-red-500 mb-4">{error}</p>}
 
-      {/* EMPTY STATE */}
       {!loading && records.length === 0 && (
         <div className="text-center py-20">
           <p className="text-gray-500 text-lg mb-4">No snapshots saved yet.</p>
@@ -422,7 +424,6 @@ export default function Records() {
         </div>
       )}
 
-      {/* NO RESULTS */}
       {!loading &&
         records.length > 0 &&
         filteredAndSortedRecords.length === 0 && (
@@ -439,10 +440,8 @@ export default function Records() {
           </div>
         )}
 
-      {/* RECORDS DISPLAY */}
       {!loading && filteredAndSortedRecords.length > 0 && (
         <>
-          {/* GROUPED VIEW */}
           {groupByCountry && groupedRecords ? (
             <div className="space-y-6">
               {groupedRecords.map(([country, countryRecords]) => (
@@ -473,7 +472,6 @@ export default function Records() {
               ))}
             </div>
           ) : (
-            /* NORMAL VIEW */
             <div
               className={
                 viewMode === "grid"
@@ -482,6 +480,30 @@ export default function Records() {
               }
             >
               {filteredAndSortedRecords.map(renderCard)}
+            </div>
+          )}
+
+          {pagination.totalPages > 1 && (
+            <div className="flex justify-center items-center gap-3 mt-8">
+              <button
+                onClick={() => setPage((prev) => prev - 1)}
+                disabled={!pagination.hasPrev}
+                className="px-4 py-2 rounded border bg-white disabled:opacity-50"
+              >
+                ← Previous
+              </button>
+
+              <span className="text-sm text-gray-600">
+                Page {pagination.page} / {pagination.totalPages}
+              </span>
+
+              <button
+                onClick={() => setPage((prev) => prev + 1)}
+                disabled={!pagination.hasNext}
+                className="px-4 py-2 rounded border bg-white disabled:opacity-50"
+              >
+                Next →
+              </button>
             </div>
           )}
         </>
